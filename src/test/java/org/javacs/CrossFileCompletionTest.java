@@ -5,6 +5,9 @@ import static org.junit.Assert.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.HashMap;
+import java.net.URI;
+import com.google.gson.JsonElement;
 import org.javacs.lsp.*;
 import org.junit.Rule;
 import org.junit.Test;
@@ -33,6 +36,89 @@ public class CrossFileCompletionTest {
                 new Position(0, MAIN.indexOf("Helper.") + "Helper.".length()));
         return server.completion(params).orElseThrow().items.stream()
                 .map(CompletionsBase::itemFilterText).toList();
+    }
+
+    private void change(JavaLanguageServer server, Path file, int version, String text) {
+        var params = new DidChangeTextDocumentParams();
+        params.textDocument.uri = file.toUri();
+        params.textDocument.version = version;
+        var edit = new TextDocumentContentChangeEvent();
+        edit.text = text;
+        params.contentChanges = List.of(edit);
+        server.didChangeTextDocument(params);
+    }
+
+    @Test
+    public void recoveredPackageOverridesDiskPackageWithoutSaving() throws Exception {
+        var root = temporary.getRoot().toPath().toAbsolutePath();
+        var source = Files.createDirectories(root.resolve("src/demo"));
+        var main = Files.writeString(source.resolve("Main.java"), MAIN);
+        var disk = HELPER.replace("package demo", "package old");
+        var helper = Files.writeString(source.resolve("Helper.java"), disk);
+        var server = LanguageServerFixture.getJavaLanguageServer(root, diagnostic -> {});
+        open(server, main, MAIN);
+        open(server, helper, HELPER);
+        var suggestions = complete(server, main);
+        assertTrue(suggestions.toString(), suggestions.contains("greeting"));
+        var close = new DidCloseTextDocumentParams();
+        close.textDocument = new TextDocumentIdentifier(helper.toUri());
+        server.didCloseTextDocument(close);
+        assertFalse(complete(server, main).contains("greeting"));
+        assertEquals(disk, Files.readString(helper));
+    }
+
+    @Test
+    public void packageTypedIntoEmptyFileUpdatesSiblingLookupAndDiscardRestoresDisk() throws Exception {
+        var root = temporary.getRoot().toPath().toAbsolutePath();
+        var source = Files.createDirectories(root.resolve("src/demo"));
+        var main = Files.writeString(source.resolve("Main.java"), MAIN);
+        var helper = Files.writeString(source.resolve("Helper.java"), "");
+        var server = LanguageServerFixture.getJavaLanguageServer(root, diagnostic -> {});
+        open(server, main, MAIN);
+        open(server, helper, "");
+        assertFalse(complete(server, main).contains("greeting"));
+        change(server, helper, 2, HELPER);
+        var suggestions = complete(server, main);
+        assertTrue(suggestions.toString(), suggestions.contains("greeting"));
+        change(server, helper, 3, HELPER.replace("package demo", "package other"));
+        assertFalse(complete(server, main).contains("greeting"));
+        change(server, helper, 4, HELPER);
+        assertTrue(complete(server, main).contains("greeting"));
+        var close = new DidCloseTextDocumentParams();
+        close.textDocument = new TextDocumentIdentifier(helper.toUri());
+        server.didCloseTextDocument(close);
+        assertFalse(complete(server, main).contains("greeting"));
+        assertEquals("", Files.readString(helper));
+    }
+
+    @Test
+    public void dependencyOnlyEditRefreshesAndClearsDiagnosticsInUntouchedMain() throws Exception {
+        var root = temporary.getRoot().toPath().toAbsolutePath();
+        var source = Files.createDirectories(root.resolve("src/demo"));
+        var text = "package demo; class Main { String value = Helper.greeting(); }";
+        var main = Files.writeString(source.resolve("Main.java"), text);
+        var helper = Files.writeString(source.resolve("Helper.java"), HELPER);
+        var diagnostics = new HashMap<URI, List<Diagnostic>>();
+        var server = LanguageServerFixture.getJavaLanguageServer(root, new LanguageClient() {
+            public void publishDiagnostics(PublishDiagnosticsParams params) {
+                diagnostics.put(params.uri, params.diagnostics);
+            }
+            public void showMessage(ShowMessageParams params) {}
+            public void registerCapability(String method, JsonElement options) {}
+            public void customNotification(String method, JsonElement params) {}
+        });
+        open(server, main, text);
+        open(server, helper, HELPER);
+        server.doAsyncWork();
+        change(server, helper, 2, HELPER.replace("greeting", "farewell"));
+        server.doAsyncWork();
+        assertTrue(diagnostics.toString(), diagnostics.getOrDefault(main.toUri(), List.of()).stream()
+                .anyMatch(d -> d.message.contains("cannot find symbol")));
+        change(server, helper, 3, HELPER);
+        server.doAsyncWork();
+        assertTrue(diagnostics.get(main.toUri()).toString(), diagnostics.get(main.toUri()).isEmpty());
+        assertEquals(text, Files.readString(main));
+        assertEquals(HELPER, Files.readString(helper));
     }
 
     @Test
