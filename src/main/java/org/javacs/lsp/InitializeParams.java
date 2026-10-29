@@ -9,6 +9,7 @@ public class InitializeParams {
     public String rootPath;
     public URI rootUri;
     public JsonElement initializationOptions;
+    public JsonElement capabilities;
     public String trace;
     public List<WorkspaceFolder> workspaceFolders;
 }

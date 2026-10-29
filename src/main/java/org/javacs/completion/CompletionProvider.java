@@ -48,6 +48,7 @@ import org.javacs.lsp.InsertTextFormat;
 
 public class CompletionProvider {
     private final CompilerProvider compiler;
+    private final boolean snippetSupport;
 
     public static final CompletionList NOT_SUPPORTED = new CompletionList(false, List.of());
     public static final int MAX_COMPLETION_ITEMS = 50;
@@ -117,7 +118,12 @@ public class CompletionProvider {
     };
 
     public CompletionProvider(CompilerProvider compiler) {
+        this(compiler, true);
+    }
+
+    public CompletionProvider(CompilerProvider compiler, boolean snippetSupport) {
         this.compiler = compiler;
+        this.snippetSupport = snippetSupport;
     }
 
     public CompletionList complete(Path file, int line, int column) {
@@ -171,6 +177,7 @@ public class CompletionProvider {
     }
 
     private void addTopLevelSnippets(ParseTask task, CompletionList list) {
+        if (!snippetSupport) return;
         var file = Paths.get(task.root.getSourceFile().toUri());
         if (!hasTypeDeclaration(task.root)) {
             list.items.add(classSnippet(file));
@@ -618,7 +625,7 @@ public class CompletionProvider {
         i.detail = first.getReturnType() + " " + first;
         var data = data(task, first, overloads.size());
         i.data = JsonHelper.GSON.toJsonTree(data);
-        if (addParens) {
+        if (addParens && snippetSupport) {
             if (overloads.size() == 1 && first.getParameters().isEmpty()) {
                 i.insertText = first.getSimpleName() + "()$0";
             } else {

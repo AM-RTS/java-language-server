@@ -52,7 +52,9 @@ public class LanguageServerFixture {
         FileStore.reset();
 
         var server = new JavaLanguageServer(client);
-        var init = new InitializeParams();
+        var init = JsonHelper.GSON.fromJson(
+                "{\"capabilities\":{\"textDocument\":{\"completion\":{\"completionItem\":{\"snippetSupport\":true}}}}}",
+                InitializeParams.class);
 
         init.rootUri = workspaceRoot.toUri();
         server.initialize(init);

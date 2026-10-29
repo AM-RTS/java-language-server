@@ -34,6 +34,7 @@ class JavaLanguageServer extends LanguageServer {
     private JsonObject cacheSettings;
     private JsonObject settings = new JsonObject();
     private boolean modifiedBuild = true;
+    private boolean snippetSupport;
 
     JavaCompilerService compiler() {
         if (needsCompiler()) {
@@ -171,6 +172,11 @@ class JavaLanguageServer extends LanguageServer {
 
     @Override
     public InitializeResult initialize(InitializeParams params) {
+        var capability = params.capabilities;
+        for (var key : List.of("textDocument", "completion", "completionItem", "snippetSupport")) {
+            capability = capability != null && capability.isJsonObject() ? capability.getAsJsonObject().get(key) : null;
+        }
+        snippetSupport = capability != null && capability.isJsonPrimitive() && capability.getAsBoolean();
         this.workspaceRoot = Paths.get(params.rootUri);
         FileStore.setWorkspaceRoots(Set.of(Paths.get(params.rootUri)));
 
@@ -277,7 +283,7 @@ class JavaLanguageServer extends LanguageServer {
     public Optional<CompletionList> completion(TextDocumentPositionParams params) {
         if (!FileStore.isJavaFile(params.textDocument.uri)) return Optional.empty();
         var file = Paths.get(params.textDocument.uri);
-        var provider = new CompletionProvider(compiler());
+        var provider = new CompletionProvider(compiler(), snippetSupport);
         var list = provider.complete(file, params.position.line + 1, params.position.character + 1);
         if (list == CompletionProvider.NOT_SUPPORTED) return Optional.empty();
         return Optional.of(list);
