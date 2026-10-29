@@ -17,6 +17,9 @@ The fork's GitHub Actions runs focused regressions, the Java suite, and the exis
 Clients that do not advertise snippet support receive plain method completions; snippet-aware
 clients retain their previous insertion behavior. Opening a newly created sibling also updates
 the source index without requiring desktop-style file-watcher notifications from the client.
+Package metadata is refreshed from active buffers before analysis, including recovered drafts;
+closing a buffer restores its on-disk package. Background diagnostics recheck all open Java
+documents after edits or closure so dependent files do not keep stale errors.
 
 This source requires JDK 25, including its compiler module and the module exports documented
 in `pom.xml`. Server-only JARs can use an existing JDK instead of bundling a desktop runtime.

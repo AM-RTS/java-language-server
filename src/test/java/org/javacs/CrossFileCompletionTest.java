@@ -117,6 +117,14 @@ public class CrossFileCompletionTest {
         change(server, helper, 3, HELPER);
         server.doAsyncWork();
         assertTrue(diagnostics.get(main.toUri()).toString(), diagnostics.get(main.toUri()).isEmpty());
+        change(server, helper, 4, HELPER.replace("greeting", "farewell"));
+        server.doAsyncWork();
+        assertFalse(diagnostics.get(main.toUri()).isEmpty());
+        var close = new DidCloseTextDocumentParams();
+        close.textDocument = new TextDocumentIdentifier(helper.toUri());
+        server.didCloseTextDocument(close);
+        server.doAsyncWork();
+        assertTrue(diagnostics.get(main.toUri()).toString(), diagnostics.get(main.toUri()).isEmpty());
         assertEquals(text, Files.readString(main));
         assertEquals(HELPER, Files.readString(helper));
     }
