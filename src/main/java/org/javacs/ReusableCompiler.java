@@ -97,7 +97,9 @@ class ReusableCompiler {
                     break;
                 }
             }
-            if (!explicit && !Objects.equals(entry.getValue(), FileStore.modified(entry.getKey()))) {
+            if (!explicit
+                    && (!FileStore.contains(entry.getKey())
+                            || !Objects.equals(entry.getValue(), FileStore.modified(entry.getKey())))) {
                 return true;
             }
         }
