@@ -217,8 +217,12 @@ class ReusableCompiler {
         @Override
         @DefinedBy(Api.COMPILER_TREE)
         public void finished(TaskEvent e) {
-            if (e.getKind() == TaskEvent.Kind.PARSE && e.getSourceFile() instanceof SourceFileObject source) {
-                sourceModified.put(source.path, FileStore.modified(source.path));
+            if (e.getKind() == TaskEvent.Kind.PARSE && e.getSourceFile() != null) {
+                var uri = e.getSourceFile().toUri();
+                if (FileStore.isJavaFile(uri)) {
+                    var path = Path.of(uri);
+                    sourceModified.put(path, FileStore.modified(path));
+                }
             }
         }
 

@@ -8,6 +8,10 @@ jobs:
   java:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [regressions, suite, benchmarks]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -18,15 +22,16 @@ jobs:
           java-version: '25'
           cache: maven
       - name: Cross-file regressions
+        if: matrix.check == 'regressions'
         run: mvn -B -Dtest=CrossFileCompletionTest test
       - name: Java suite
-        if: always()
+        if: matrix.check == 'suite'
         run: mvn -B test
       - name: Existing parser and pruner benchmarks
-        if: always()
+        if: matrix.check == 'benchmarks'
         run: bash scripts/benchmark.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: surefire-reports
+          name: surefire-reports-${{ matrix.check }}
           path: target/surefire-reports/
