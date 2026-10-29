@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [regressions, suite, benchmarks]
+        check: [regressions, suite, benchmarks, baseline-benchmarks]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -28,8 +28,12 @@ jobs:
         if: matrix.check == 'suite'
         run: mvn -B test
       - name: Existing parser and pruner benchmarks
-        if: matrix.check == 'benchmarks'
-        run: bash scripts/benchmark.sh
+        if: matrix.check == 'benchmarks' || matrix.check == 'baseline-benchmarks'
+        env:
+          CHECK: ${{ matrix.check }}
+        run: |
+          if [ "$CHECK" = baseline-benchmarks ]; then git checkout 58daaa29a0e2fe22764283607da6801cf8b493b9; fi
+          bash scripts/benchmark.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:

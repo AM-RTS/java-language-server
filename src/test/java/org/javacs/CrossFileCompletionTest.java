@@ -77,4 +77,19 @@ public class CrossFileCompletionTest {
         var suggestions = complete(server, main);
         assertTrue(suggestions.toString(), suggestions.contains("greeting"));
     }
+
+    @Test
+    public void unsavedCompletionAfterCompactIndexing() throws Exception {
+        var root = temporary.getRoot().toPath().toAbsolutePath();
+        var source = Files.createDirectories(root.resolve("src/demo"));
+        var helper = Files.writeString(source.resolve("Helper.java"), HELPER.replace(";\n", "; "));
+        var server = LanguageServerFixture.getJavaLanguageServer(root, diagnostic -> {});
+        var text = "package demo; class Helper { Object value = \"\".sub; }";
+        open(server, helper, text);
+        var params = new TextDocumentPositionParams(
+                new TextDocumentIdentifier(helper.toUri()), new Position(0, text.indexOf("sub") + 3));
+        var suggestions = server.completion(params).orElseThrow().items.stream()
+                .map(CompletionsBase::itemFilterText).toList();
+        assertTrue(suggestions.toString(), suggestions.contains("substring"));
+    }
 }

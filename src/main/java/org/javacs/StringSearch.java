@@ -374,11 +374,13 @@ public class StringSearch {
         var packagePattern = Pattern.compile("^package +([\\w$.]+);\\s*$");
         try (var lines = FileStore.lines(file)) {
             for (var line = lines.readLine(); line != null; line = lines.readLine()) {
+                if (line.isBlank()) continue;
                 var matchPackage = packagePattern.matcher(line);
                 if (matchPackage.matches()) {
                     var id = matchPackage.group(1);
                     return id;
                 }
+                break;
             }
         } catch (CharacterCodingException e) {
             throw e;
