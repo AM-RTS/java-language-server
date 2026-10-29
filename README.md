@@ -2,6 +2,23 @@
 
 A Java [language server](https://github.com/Microsoft/vscode-languageserver-protocol) based on v3.0 of the protocol and implemented using the Java compiler API.
 
+## TermuIDE evaluation fork
+
+This fork of [George Fraser's Java language server](https://github.com/georgewfraser/java-language-server)
+is maintained for [TermuIDE's Java tooling evaluation](https://github.com/AM-RTS/TermuIDE).
+Original authorship, licenses, and third-party notices are retained.
+
+The changes refresh retained compiler symbols after unsaved dependency edits or buffer closure,
+recognize compact and commented package declarations through the existing Java parser, and
+invalidate parsed trees when switching between indexing snapshots and live documents.
+`CrossFileCompletionTest` covers these behaviors through the language-server API.
+The fork's GitHub Actions runs focused regressions, the Java suite, and the existing parser/pruner benchmarks.
+
+This source requires JDK 25, including its compiler module and the module exports documented
+in `pom.xml`. Server-only JARs can use an existing JDK instead of bundling a desktop runtime.
+Linux host validation does not establish Termux/Android compatibility. This fork has not yet
+been enabled as TermuIDE's Java server; existing VS Code installation instructions below refer to upstream.
+
 ## Installation (VS Code)
 
 [Install from the VS Code marketplace](https://marketplace.visualstudio.com/items?itemName=georgewfraser.vscode-javac)

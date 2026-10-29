@@ -2,6 +2,7 @@ name: TermuIDE regressions
 on:
   push:
     branches: [codex/termuide-fixes]
+    paths: ['src/**', 'pom.xml', '.github/workflows/termuide.yml', 'scripts/benchmark.sh']
 permissions:
   contents: read
 jobs:
@@ -16,6 +17,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+          ref: ${{ matrix.check == 'baseline-benchmarks' && '58daaa29a0e2fe22764283607da6801cf8b493b9' || github.sha }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -29,11 +31,7 @@ jobs:
         run: mvn -B test
       - name: Existing parser and pruner benchmarks
         if: matrix.check == 'benchmarks' || matrix.check == 'baseline-benchmarks'
-        env:
-          CHECK: ${{ matrix.check }}
-        run: |
-          if [ "$CHECK" = baseline-benchmarks ]; then git checkout 58daaa29a0e2fe22764283607da6801cf8b493b9; fi
-          bash scripts/benchmark.sh
+        run: bash scripts/benchmark.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
