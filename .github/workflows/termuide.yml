@@ -25,7 +25,7 @@ jobs:
           cache: maven
       - name: Cross-file regressions
         if: matrix.check == 'regressions'
-        run: mvn -B -Dtest=CrossFileCompletionTest test
+        run: mvn -B -Dtest=CrossFileCompletionTest,PlainCompletionTest test
       - name: Java suite
         if: matrix.check == 'suite'
         run: mvn -B test
