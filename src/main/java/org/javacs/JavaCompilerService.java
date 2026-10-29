@@ -45,6 +45,7 @@ class JavaCompilerService implements CompilerProvider {
     private Map<JavaFileObject, Long> cachedModified = new HashMap<>();
 
     private boolean needsCompile(Collection<? extends JavaFileObject> sources) {
+        if (compiler.hasChangedSources(sources)) return true;
         if (cachedModified.size() != sources.size()) {
             return true;
         }

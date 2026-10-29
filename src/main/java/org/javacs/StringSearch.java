@@ -371,11 +371,9 @@ public class StringSearch {
     }
 
     static String packageName(Path file) throws CharacterCodingException {
-        var packagePattern = Pattern.compile("^package +(.*);");
-        var startOfClass = Pattern.compile("^[\\w ]*class +\\w+");
+        var packagePattern = Pattern.compile("^package +([\\w$.]+);\\s*$");
         try (var lines = FileStore.lines(file)) {
             for (var line = lines.readLine(); line != null; line = lines.readLine()) {
-                if (startOfClass.matcher(line).find()) return "";
                 var matchPackage = packagePattern.matcher(line);
                 if (matchPackage.matches()) {
                     var id = matchPackage.group(1);
@@ -387,8 +385,10 @@ public class StringSearch {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        // TODO fall back on parsing file
-        return "";
+        // Indexing calls this before FileStore has metadata for the file.
+        var source = new SourceFileObject(file, FileStore.contents(file), SourceFileObject.now());
+        var name = Parser.parseJavaFileObject(source).root.getPackageName();
+        return name == null ? "" : name.toString();
     }
 
     public static boolean matchesPartialName(CharSequence candidate, CharSequence partialName) {

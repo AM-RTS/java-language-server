@@ -41,8 +41,13 @@ import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.Log;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -81,6 +86,24 @@ class ReusableCompiler {
     private ReusableContext currentContext;
     private boolean checkedOut;
 
+    boolean hasChangedSources(Iterable<? extends JavaFileObject> compilationUnits) {
+        if (currentContext == null) return false;
+        for (var entry : currentContext.sourceModified.entrySet()) {
+            // Explicit roots are entered again by javac; implicit source symbols are retained.
+            boolean explicit = false;
+            for (var unit : compilationUnits) {
+                if (unit.toUri().equals(entry.getKey().toUri())) {
+                    explicit = true;
+                    break;
+                }
+            }
+            if (!explicit && !Objects.equals(entry.getValue(), FileStore.modified(entry.getKey()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Creates a new task as if by {@link javax.tools.JavaCompiler#getTask} and runs the provided worker with it. The
      * task is only valid while the worker is running. The internal structures may be reused from some previous
@@ -110,7 +133,7 @@ class ReusableCompiler {
         checkedOut = true;
         List<String> opts =
                 StreamSupport.stream(options.spliterator(), false).collect(Collectors.toCollection(ArrayList::new));
-        if (!opts.equals(currentOptions)) {
+        if (currentContext == null || !opts.equals(currentOptions) || hasChangedSources(compilationUnits)) {
             LOG.warning(String.format("Options changed from %s to %s, creating new compiler", options, opts));
             currentOptions = opts;
             currentContext = new ReusableContext(opts);
@@ -158,6 +181,7 @@ class ReusableCompiler {
     static class ReusableContext extends Context implements TaskListener {
 
         List<String> arguments;
+        final Map<Path, Instant> sourceModified = new HashMap<>();
 
         ReusableContext(List<String> arguments) {
             super();
@@ -193,7 +217,9 @@ class ReusableCompiler {
         @Override
         @DefinedBy(Api.COMPILER_TREE)
         public void finished(TaskEvent e) {
-            // do nothing
+            if (e.getKind() == TaskEvent.Kind.PARSE && e.getSourceFile() instanceof SourceFileObject source) {
+                sourceModified.put(source.path, FileStore.modified(source.path));
+            }
         }
 
         @Override
