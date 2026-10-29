@@ -79,6 +79,20 @@ public class CrossFileCompletionTest {
     }
 
     @Test
+    public void openingNewSiblingDoesNotRequireFileWatcherSupport() throws Exception {
+        var root = temporary.getRoot().toPath().toAbsolutePath();
+        var source = Files.createDirectories(root.resolve("src/demo"));
+        var main = Files.writeString(source.resolve("Main.java"), MAIN);
+        var server = LanguageServerFixture.getJavaLanguageServer(root, diagnostic -> {});
+        open(server, main, MAIN);
+        assertFalse(complete(server, main).contains("greeting"));
+        var helper = Files.writeString(source.resolve("Helper.java"), HELPER);
+        open(server, helper, HELPER);
+        var suggestions = complete(server, main);
+        assertTrue(suggestions.toString(), suggestions.contains("greeting"));
+    }
+
+    @Test
     public void unsavedCompletionAfterCompactIndexing() throws Exception {
         var root = temporary.getRoot().toPath().toAbsolutePath();
         var source = Files.createDirectories(root.resolve("src/demo"));
