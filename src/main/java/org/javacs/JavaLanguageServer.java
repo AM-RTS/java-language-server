@@ -37,6 +37,7 @@ class JavaLanguageServer extends LanguageServer {
     private boolean snippetSupport;
 
     JavaCompilerService compiler() {
+        if (FileStore.refreshPackages()) modifiedBuild = true;
         if (needsCompiler()) {
             cacheCompiler = createCompiler();
             cacheSettings = settings;
@@ -522,7 +523,6 @@ class JavaLanguageServer extends LanguageServer {
     }
 
     private boolean uncheckedChanges = false;
-    private Path lastEdited = Paths.get("");
 
     @Override
     public void didOpenTextDocument(DidOpenTextDocumentParams params) {
@@ -531,14 +531,12 @@ class JavaLanguageServer extends LanguageServer {
         FileStore.open(params);
         if (!FileStore.isJavaFile(params.textDocument.uri)) return;
         if (newSource) modifiedBuild = true;
-        lastEdited = Paths.get(params.textDocument.uri);
         uncheckedChanges = true;
     }
 
     @Override
     public void didChangeTextDocument(DidChangeTextDocumentParams params) {
         FileStore.change(params);
-        lastEdited = Paths.get(params.textDocument.uri);
         uncheckedChanges = true;
     }
 
@@ -547,6 +545,8 @@ class JavaLanguageServer extends LanguageServer {
         FileStore.close(params);
 
         if (FileStore.isJavaFile(params.textDocument.uri)) {
+            modifiedBuild = true;
+            uncheckedChanges = true;
             // Clear diagnostics
             client.publishDiagnostics(new PublishDiagnosticsParams(params.textDocument.uri, List.of()));
         }
@@ -572,8 +572,8 @@ class JavaLanguageServer extends LanguageServer {
 
     @Override
     public void doAsyncWork() {
-        if (uncheckedChanges && FileStore.activeDocuments().contains(lastEdited)) {
-            lint(List.of(lastEdited));
+        if (uncheckedChanges) {
+            lint(FileStore.activeDocuments());
             uncheckedChanges = false;
         }
     }

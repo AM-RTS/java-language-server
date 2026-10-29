@@ -19,6 +19,7 @@ public class FileStore {
     private static final Set<Path> workspaceRoots = new HashSet<>();
 
     private static final Map<Path, VersionedContent> activeDocuments = new HashMap<>();
+    private static final Set<Path> pendingPackages = new HashSet<>();
 
     /** javaSources[file] is the javaSources time of a .java source file. */
     // TODO organize by package name for speed of list(...)
@@ -91,6 +92,7 @@ public class FileStore {
 
     static void reset() {
         activeDocuments.clear();
+        pendingPackages.clear();
         workspaceRoots.clear();
         javaSources.clear();
     }
@@ -224,6 +226,7 @@ public class FileStore {
         var document = params.textDocument;
         var file = Paths.get(document.uri);
         activeDocuments.put(file, new VersionedContent(document.text, document.version));
+        pendingPackages.add(file);
         if (!javaSources.containsKey(file)) readInfoFromDisk(file);
     }
 
@@ -242,12 +245,36 @@ public class FileStore {
             else newText = patch(newText, change);
         }
         activeDocuments.put(file, new VersionedContent(newText, document.version));
+        pendingPackages.add(file);
+    }
+
+    // Resolve package changes once before analysis, not on every text notification in a batch.
+    static boolean refreshPackages() {
+        boolean changed = false;
+        for (var file : pendingPackages) {
+            String packageName;
+            try {
+                packageName = StringSearch.packageName(file);
+            } catch (CharacterCodingException e) {
+                throw new RuntimeException(e);
+            }
+            var previous = javaSources.get(file);
+            if (previous == null || !previous.packageName.equals(packageName)) {
+                var modified = previous == null ? activeDocuments.get(file).modified : previous.modified;
+                javaSources.put(file, new Info(modified, packageName));
+                changed = true;
+            }
+        }
+        pendingPackages.clear();
+        return changed;
     }
 
     static void close(DidCloseTextDocumentParams params) {
         if (!isJavaFile(params.textDocument.uri)) return;
         var file = Paths.get(params.textDocument.uri);
         activeDocuments.remove(file);
+        pendingPackages.remove(file);
+        readInfoFromDisk(file);
     }
 
     static Set<Path> activeDocuments() {
