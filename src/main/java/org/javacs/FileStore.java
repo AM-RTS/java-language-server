@@ -224,6 +224,7 @@ public class FileStore {
         var document = params.textDocument;
         var file = Paths.get(document.uri);
         activeDocuments.put(file, new VersionedContent(document.text, document.version));
+        if (!javaSources.containsKey(file)) readInfoFromDisk(file);
     }
 
     static void change(DidChangeTextDocumentParams params) {

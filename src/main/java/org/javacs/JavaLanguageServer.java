@@ -526,8 +526,11 @@ class JavaLanguageServer extends LanguageServer {
 
     @Override
     public void didOpenTextDocument(DidOpenTextDocumentParams params) {
+        boolean newSource = FileStore.isJavaFile(params.textDocument.uri)
+                && !FileStore.contains(Paths.get(params.textDocument.uri));
         FileStore.open(params);
         if (!FileStore.isJavaFile(params.textDocument.uri)) return;
+        if (newSource) modifiedBuild = true;
         lastEdited = Paths.get(params.textDocument.uri);
         uncheckedChanges = true;
     }
