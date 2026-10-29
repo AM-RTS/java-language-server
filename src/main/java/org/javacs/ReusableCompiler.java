@@ -24,6 +24,7 @@
  * questions.
  */
 
+// Modified by AM-RTS on 2026-10-30: invalidate retained source symbols after dependency edits.
 package org.javacs;
 
 import com.sun.source.util.JavacTask;

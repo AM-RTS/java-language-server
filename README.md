@@ -14,6 +14,10 @@ invalidate parsed trees when switching between indexing snapshots and live docum
 `CrossFileCompletionTest` covers these behaviors through the language-server API.
 The fork's GitHub Actions runs focused regressions, the Java suite, and the existing parser/pruner benchmarks.
 
+Clients that do not advertise snippet support receive plain method completions; snippet-aware
+clients retain their previous insertion behavior. Opening a newly created sibling also updates
+the source index without requiring desktop-style file-watcher notifications from the client.
+
 This source requires JDK 25, including its compiler module and the module exports documented
 in `pom.xml`. Server-only JARs can use an existing JDK instead of bundling a desktop runtime.
 Linux host validation does not establish Termux/Android compatibility. This fork has not yet
